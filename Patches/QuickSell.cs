@@ -110,9 +110,7 @@ namespace QuickSell.Patches
             if (inventoryControllerClass == null) Utils.sendError("Counldnt Load inventoryControllerClass");
             
             var lootItemClass = new LootItemClass[] { inventoryControllerClass.Inventory.Stash };
-
             var helper  = new RagfairOfferSellHelperClass(session.Profile, lootItemClass[0].Grids[0]);
-
             if (!helper.HighlightedAtRagfair(item))
             {
                 Utils.sendError("Item cannot be sold on the flea");
@@ -126,10 +124,19 @@ namespace QuickSell.Patches
             var ragFairClass = (RagFairClass)typeof(ItemMarketPricesPanel).GetField("ragFairClass", BindingFlags.NonPublic| BindingFlags.Instance).GetValue(_pricesPanel);
             if (ragFairClass == null) Utils.sendError("Couldnt load ragfairclass");
 
+            var max_offers = ragFairClass.GetMaxOffersCount(ragFairClass.MyRating);
+            var current_offers = ragFairClass.MyOffersCount;
+
+            if (current_offers == max_offers)
+            {
+                Utils.sendError("You have reached the maximum number of offers");
+                return;
+            }
+
             var fleaAction = FleaCallbackFactory(item, _pricesPanel, ragFairClass, offer, helper);
             ragFairClass.GetMarketPrices(item.TemplateId, fleaAction);
         }
-
+        
         public static Action<ItemMarketPrices> FleaCallbackFactory(Item item, ItemMarketPricesPanel panel, RagFairClass ragFair, AddOfferWindow offer, RagfairOfferSellHelperClass helper)
         {
             Action<ItemMarketPrices> res = null;
