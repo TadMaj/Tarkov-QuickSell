@@ -11,7 +11,7 @@ using QuickSell.Patches;
 namespace QuickSell
 {
 
-    [BepInPlugin("QuickSell.UniqueGUID", "QuickSell", "1.0.0")]
+    [BepInPlugin("QuickSell.UniqueGUID", "QuickSell", "1.0.1")]
     public class Plugin : BaseUnityPlugin
     {
         
