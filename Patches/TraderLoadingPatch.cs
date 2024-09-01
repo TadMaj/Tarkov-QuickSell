@@ -27,7 +27,7 @@ namespace QuickSell.Patches
         {
             if (screen == EMenuType.Player)
             {
-                __instance.method_34();
+                //__instance.method_34();
                 __instance.method_35();
             }
 

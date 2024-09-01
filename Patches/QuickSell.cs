@@ -21,6 +21,7 @@ using EFT.UI.Ragfair;
 using static System.Collections.Specialized.BitVector32;
 using TMPro;
 using QuickSell.Patches;
+using SPT.Reflection.Utils;
 
 namespace QuickSell.Patches
 {
@@ -28,6 +29,8 @@ namespace QuickSell.Patches
 
     internal class ContextMenuPatch : ModulePatch // all patches must inherit ModulePatch
     {
+        private static TraderClass[] traders = null;
+
         protected override MethodBase GetTargetMethod()
         {
             return typeof(SimpleContextMenu).GetMethod(nameof(SimpleContextMenu.method_0)).MakeGenericMethod(typeof(EItemInfoButton));
@@ -190,9 +193,14 @@ namespace QuickSell.Patches
         // Returns Trader with best offer of null if unsellable
         private static TraderClass selectTrader(Item item)
         {
+            if (traders == null)
+            {
+                forceReloadTraders();
+            }
+
             TraderClass best = null;
             int bestOffer = 0;
-            foreach (var trader in Singleton<MenuUI>.Instance.TraderScreensGroup.IEnumerable_0)
+            foreach (var trader in traders)
             {
                 var price = trader.GetUserItemPrice(item);
 
@@ -219,6 +227,15 @@ namespace QuickSell.Patches
         private static void PlaySellSound()
         {
             Singleton<GUISounds>.Instance.PlayUISound(EUISoundType.TradeOperationComplete);
+        }
+
+        private static void forceReloadTraders()
+        {
+            var app = ClientAppUtils.GetMainApp();
+            
+            var mainMenu = (MainMenuController) typeof(TarkovApplication).GetField("mainMenuController", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(app);
+            var iSession = (ISession)typeof(MainMenuController).GetField("iSession", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(mainMenu);
+            traders = iSession.Traders.Where(new Func<TraderClass, bool>(MainMenuController.Class1271.class1271_0.method_4)).ToArray<TraderClass>();
         }
 
     }
