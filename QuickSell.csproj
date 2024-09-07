@@ -114,7 +114,6 @@
   <ItemGroup>
     <Compile Include="Patches\QuickSell.cs" />
     <Compile Include="Patches\TraderInventoryLoadingPatch.cs" />
-    <Compile Include="Patches\TraderLoadingPatch.cs" />
     <Compile Include="Patches\Utils.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

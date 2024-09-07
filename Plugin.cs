@@ -33,7 +33,6 @@ namespace QuickSell
         {
             LogSource = Logger;
             new ContextMenuPatch().Enable();
-            new TraderLoadingPatch().Enable();
             new TraderInventoryLoadingPatch().Enable();
         }
     }
