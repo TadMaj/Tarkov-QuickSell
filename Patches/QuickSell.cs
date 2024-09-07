@@ -22,6 +22,7 @@ using static System.Collections.Specialized.BitVector32;
 using TMPro;
 using QuickSell.Patches;
 using SPT.Reflection.Utils;
+using EFT.UI.WeaponModding;
 
 namespace QuickSell.Patches
 {
@@ -30,6 +31,19 @@ namespace QuickSell.Patches
     internal class ContextMenuPatch : ModulePatch // all patches must inherit ModulePatch
     {
         private static TraderClass[] traders = null;
+
+        private static TarkovApplication GetApp()
+        {
+            return ClientAppUtils.GetMainApp();
+        }
+        private static MainMenuController GetMainMenu()
+        {
+           return (MainMenuController)typeof(TarkovApplication).GetField("mainMenuController", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(GetApp());
+        }
+        private static ISession GetSession()
+        {
+            return (ISession)typeof(MainMenuController).GetField("iSession", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(GetMainMenu());
+        }
 
         protected override MethodBase GetTargetMethod()
         {
@@ -84,7 +98,7 @@ namespace QuickSell.Patches
                 
                 Utils.sendNotification(string.Format("Profit: {0}", price));
 
-                ITraderInteractions interactions =(ITraderInteractions) typeof(TraderClass).GetField("iTraderInteractions", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(bestTrader);
+                ITraderInteractions interactions = (ITraderInteractions) typeof(TraderClass).GetField("iTraderInteractions", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(bestTrader);
                 interactions.ConfirmSell(bestTrader.Id, [new EFT.Trading.TradingItemReference { Item = item, Count = item.StackObjectsCount }], price, new Callback(PlaySellSound));
 
             }
@@ -96,6 +110,7 @@ namespace QuickSell.Patches
 
 
         }
+
         private static void sellFlea(string itemId, Item item) 
         {
             try
@@ -108,13 +123,10 @@ namespace QuickSell.Patches
 
                 flea.method_2();
 
-                var offer = (AddOfferWindow)typeof(RagfairScreen).GetField("addOfferWindow_0", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(flea);
-                if (offer == null) Utils.sendError("Counldnt Load offer window");
-
-                var session = (ISession)typeof(TradingScreen).GetField("iSession", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(tradingScreen);
+                var session = GetSession();
                 if (session == null) Utils.sendError("Counldnt Load session");
 
-                var inventoryControllerClass = (InventoryControllerClass)typeof(TradingScreen).GetField("inventoryControllerClass", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(tradingScreen);
+                var inventoryControllerClass = GetMainMenu().InventoryController;
                 if (inventoryControllerClass == null) Utils.sendError("Counldnt Load inventoryControllerClass");
 
                 var lootItemClass = new LootItemClass[] { inventoryControllerClass.Inventory.Stash };
@@ -125,12 +137,7 @@ namespace QuickSell.Patches
                     return;
                 }
 
-                var _pricesPanel = (ItemMarketPricesPanel)typeof(AddOfferWindow).GetField("_pricesPanel", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(offer);
-                if (_pricesPanel == null) Utils.sendError("Counldnt Load _pricesPanel");
-
-
-                var ragFairClass = (RagFairClass)typeof(ItemMarketPricesPanel).GetField("ragFairClass", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(_pricesPanel);
-                if (ragFairClass == null) Utils.sendError("Couldnt load ragfairclass");
+                var ragFairClass = GetSession().RagFair;
 
                 var max_offers = ragFairClass.GetMaxOffersCount(ragFairClass.MyRating);
                 var current_offers = ragFairClass.MyOffersCount;
@@ -141,10 +148,11 @@ namespace QuickSell.Patches
                     return;
                 }
 
-                var fleaAction = FleaCallbackFactory(item, _pricesPanel, ragFairClass, offer, helper);
-                //Utils.sendNotification("Made callback");
+                var fleaAction = FleaCallbackFactory(item, ragFairClass, helper);
                 ragFairClass.GetMarketPrices(item.TemplateId, fleaAction);
-                
+
+
+
             } catch (Exception ex)
             {
                 Utils.sendError(ex.ToString());
@@ -152,32 +160,18 @@ namespace QuickSell.Patches
             }
         }
         
-        public static Action<ItemMarketPrices> FleaCallbackFactory(Item item, ItemMarketPricesPanel panel, RagFairClass ragFair, AddOfferWindow offer, RagfairOfferSellHelperClass helper)
+        public static Action<ItemMarketPrices> FleaCallbackFactory(Item item, RagFairClass ragFair, RagfairOfferSellHelperClass helper)
         {
             Action<ItemMarketPrices> res = null;
 
             res = (ItemMarketPrices result) => {
-                panel.method_1(result);
-
                 try
                 {
-                    var helper2 = (RagfairOfferSellHelperClass)typeof(AddOfferWindow).GetField("ragfairOfferSellHelperClass", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(offer);
-                    if (helper2 == null) Utils.sendError("Counldnt Load helper2");
-                    helper2.method_0(item);
-                    offer.method_9(item, false);
+                    List<GClass1859> list = new List<GClass1859>();
 
-                    var item_0 = (Item)typeof(AddOfferWindow).GetField("item_0", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(offer);
-                    if (item_0 == null) Utils.sendError("Counldnt Load item_0");
-                    var double_0 = (double)typeof(AddOfferWindow).GetField("double_0", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(offer);
-                    var requirementViews = (RequirementView[])typeof(AddOfferWindow).GetField("_requirementViews", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(offer);
-                    if (requirementViews == null) Utils.sendError("Counldnt Load requirementViews");
-                    var inventoryControllerClass = (InventoryControllerClass)typeof(AddOfferWindow).GetField("inventoryControllerClass", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(offer);
+                    list.Add(new GClass1859 { _tpl = GClass2531.GetCurrencyId(ECurrencyType.RUB), count = result.avg, onlyFunctional = true });
 
-                    requirementViews[0].method_0(panel.Average.ToString());
-                    offer.method_1();
-
-                    PlaySellSound();
-
+                    ragFair.AddOffer(false, [item.Id], [.. list], new Action(PlaySellSound));
                 }
                 catch (Exception ex)
                 {
@@ -194,6 +188,13 @@ namespace QuickSell.Patches
         private static TraderClass selectTrader(Item item)
         {
             if (traders == null)
+            {
+                forceReloadTraders();
+
+            }
+
+            var supplyData_0 = (SupplyData)typeof(TraderClass).GetField("supplyData_0", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(traders.First());
+            if (supplyData_0 == null)
             {
                 forceReloadTraders();
             }
@@ -230,12 +231,8 @@ namespace QuickSell.Patches
         }
 
         private static void forceReloadTraders()
-        {
-            var app = ClientAppUtils.GetMainApp();
-            
-            var mainMenu = (MainMenuController) typeof(TarkovApplication).GetField("mainMenuController", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(app);
-            var iSession = (ISession)typeof(MainMenuController).GetField("iSession", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(mainMenu);
-            traders = iSession.Traders.Where(new Func<TraderClass, bool>(MainMenuController.Class1271.class1271_0.method_4)).ToArray<TraderClass>();
+        {        
+            traders = GetSession().Traders.Where(new Func<TraderClass, bool>(MainMenuController.Class1271.class1271_0.method_4)).ToArray<TraderClass>();
         }
 
     }
