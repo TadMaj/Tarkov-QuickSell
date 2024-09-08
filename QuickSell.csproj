@@ -112,6 +112,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Patches\ConfigController.cs" />
     <Compile Include="Patches\QuickSell.cs" />
     <Compile Include="Patches\TraderInventoryLoadingPatch.cs" />
     <Compile Include="Patches\Utils.cs" />
@@ -121,6 +122,6 @@
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy "$(TargetPath)" "$(ProjectDir)\..\..\BepInEx\plugins\$(TargetFileName)"</PostBuildEvent>
+    <PostBuildEvent>copy "$(TargetPath)" "$(ProjectDir)\..\..\BepInEx\plugins\QuickSell\$(TargetFileName)"</PostBuildEvent>
   </PropertyGroup>
 </Project>

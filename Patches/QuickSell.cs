@@ -57,7 +57,7 @@ namespace QuickSell.Patches
 
             if (item == null)
             {
-                Utils.sendError("No item is selected");
+                Utils.SendError("No item is selected");
                 return;
             }
             ItemContextAbstractClass itemContext = Traverse.Create(contextInteractions).Field<ItemContextAbstractClass>("itemContextAbstractClass").Value;
@@ -72,31 +72,34 @@ namespace QuickSell.Patches
             Dictionary<string, DynamicInteractionClass> dynamicInteractions = Traverse.Create(contextInteractions).Field<Dictionary<string, DynamicInteractionClass>>("dictionary_0").Value;
             if (dynamicInteractions is null) return;
 
-            string itemId = itemContext.Item.Id;
-            dynamicInteractions["QuickSell (Flea)"] = new("QuickSell (Flea)", "QuickSell (Flea)", () => confirmWindow(() => sellFlea(itemId, item), "on the flea"), CacheResourcesPopAbstractClass.Pop<Sprite>("Characteristics/Icons/UnloadAmmo"));
-            dynamicInteractions["QuickSell (Trader)"] = new("QuickSell (Trader)", "QuickSell (Trader)", () => confirmWindow(() => sellTrader(itemId, item), "to the traders"), CacheResourcesPopAbstractClass.Pop<Sprite>("Characteristics/Icons/UnloadAmmo"));
+            if (Plugin.EnableQuickSellFlea) dynamicInteractions["QuickSell (Flea)"] = new("QuickSell (Flea)", "QuickSell (Flea)", () => ConfirmWindow(() => SellFlea(item), "on the flea"), CacheResourcesPopAbstractClass.Pop<Sprite>("Characteristics/Icons/UnloadAmmo"));
+            if (Plugin.EnableQuickSellTraders) dynamicInteractions["QuickSell (Trader)"] = new("QuickSell (Trader)", "QuickSell (Trader)", () => ConfirmWindow(() => SellTrader(item), "to the traders"), CacheResourcesPopAbstractClass.Pop<Sprite>("Characteristics/Icons/UnloadAmmo"));
         }
 
-        private static void confirmWindow(Action callback, string source)
+        public static void ConfirmWindow(Action callback, string source)
         {
-            ItemUiContext.Instance.ShowMessageWindow(string.Format("Are you sure you want to sell this item {0}", source).Localized(null), callback, () => { }, null, 0f, false, TextAlignmentOptions.Center);
+            if (Plugin.ShowConfirmationDialog)
+            {
+                ItemUiContext.Instance.ShowMessageWindow(string.Format("Are you sure you want to sell this item {0}", source).Localized(null), callback, () => { }, null, 0f, false, TextAlignmentOptions.Center);
+            }
+            else callback();
         }
 
-        private static void sellTrader(string itemId, Item item)
+        public static void SellTrader(Item item)
         {
             try
             {
-                var bestTrader = selectTrader(item);
+                var bestTrader = SelectTrader(item);
 
                 if (bestTrader == null)
                 {
-                    Utils.sendError("Item cannot be sold traders");
+                    Utils.SendError("Item cannot be sold traders");
                     return;
                 }
 
                 var price = bestTrader.GetUserItemPrice(item).Value.Amount;
                 
-                Utils.sendNotification(string.Format("Profit: {0}", price));
+                Utils.SendNotification(string.Format("Profit: {0}", price));
 
                 ITraderInteractions interactions = (ITraderInteractions) typeof(TraderClass).GetField("iTraderInteractions", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(bestTrader);
                 interactions.ConfirmSell(bestTrader.Id, [new EFT.Trading.TradingItemReference { Item = item, Count = item.StackObjectsCount }], price, new Callback(PlaySellSound));
@@ -104,36 +107,36 @@ namespace QuickSell.Patches
             }
             catch (Exception ex)
             {
-                Utils.sendError(ex.ToString());
+                Utils.SendError(ex.ToString());
                 Plugin.LogSource.LogWarning(ex.ToString());
             }
 
 
         }
 
-        private static void sellFlea(string itemId, Item item) 
+        public static void SellFlea(Item item) 
         {
             try
             {
                 var tradingScreen = Singleton<MenuUI>.Instance.TradingScreen;
-                if (tradingScreen == null) Utils.sendError("Counldnt Load tradingScreen");
+                if (tradingScreen == null) Utils.SendError("Counldnt Load tradingScreen");
 
                 RagfairScreen flea = (RagfairScreen)typeof(TradingScreen).GetField("_ragfairScreen", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(tradingScreen);
-                if (flea == null) Utils.sendError("Counldnt Load flea");
+                if (flea == null) Utils.SendError("Counldnt Load flea");
 
                 flea.method_2();
 
                 var session = GetSession();
-                if (session == null) Utils.sendError("Counldnt Load session");
+                if (session == null) Utils.SendError("Counldnt Load session");
 
                 var inventoryControllerClass = GetMainMenu().InventoryController;
-                if (inventoryControllerClass == null) Utils.sendError("Counldnt Load inventoryControllerClass");
+                if (inventoryControllerClass == null) Utils.SendError("Counldnt Load inventoryControllerClass");
 
                 var lootItemClass = new LootItemClass[] { inventoryControllerClass.Inventory.Stash };
                 var helper = new RagfairOfferSellHelperClass(session.Profile, lootItemClass[0].Grids[0]);
                 if (!helper.HighlightedAtRagfair(item))
                 {
-                    Utils.sendError("Item cannot be sold on the flea");
+                    Utils.SendError("Item cannot be sold on the flea");
                     return;
                 }
 
@@ -142,50 +145,50 @@ namespace QuickSell.Patches
                 var max_offers = ragFairClass.GetMaxOffersCount(ragFairClass.MyRating);
                 var current_offers = ragFairClass.MyOffersCount;
 
-                if (current_offers == max_offers)
+                if (!Plugin.IgnoreFleaCapacity && current_offers == max_offers)
                 {
-                    Utils.sendError("You have reached the maximum number of offers");
+                    Utils.SendError("You have reached the maximum number of offers");
                     return;
                 }
 
-                var fleaAction = FleaCallbackFactory(item, ragFairClass, helper);
+                var fleaAction = FleaCallbackFactory(item, ragFairClass);
                 ragFairClass.GetMarketPrices(item.TemplateId, fleaAction);
 
 
 
             } catch (Exception ex)
             {
-                Utils.sendError(ex.ToString());
+                Utils.SendError(ex.ToString());
                 Plugin.LogSource.LogWarning(ex.ToString());
             }
         }
         
-        public static Action<ItemMarketPrices> FleaCallbackFactory(Item item, RagFairClass ragFair, RagfairOfferSellHelperClass helper)
+        public static Action<ItemMarketPrices> FleaCallbackFactory(Item item, RagFairClass ragFair)
         {
-            Action<ItemMarketPrices> res = null;
-
-            res = (ItemMarketPrices result) => {
+            void res(ItemMarketPrices result)
+            {
                 try
                 {
-                    List<GClass1859> list = new List<GClass1859>();
-
-                    list.Add(new GClass1859 { _tpl = GClass2531.GetCurrencyId(ECurrencyType.RUB), count = result.avg, onlyFunctional = true });
+                    List<GClass1859> list =
+                    [
+                        new GClass1859 { _tpl = GClass2531.GetCurrencyId(ECurrencyType.RUB), count = Math.Ceiling(result.avg/100.0*Plugin.AvgPricePercent), onlyFunctional = true },
+                    ];
 
                     ragFair.AddOffer(false, [item.Id], [.. list], new Action(PlaySellSound));
                 }
                 catch (Exception ex)
                 {
-                    Utils.sendError(ex.ToString());
+                    Utils.SendError(ex.ToString());
                     Plugin.LogSource.LogWarning(ex.ToString());
                 }
 
-            };
+            }
 
             return res;
         }
 
         // Returns Trader with best offer of null if unsellable
-        private static TraderClass selectTrader(Item item)
+        private static TraderClass SelectTrader(Item item)
         {
             if (traders == null)
             {
@@ -203,6 +206,8 @@ namespace QuickSell.Patches
             int bestOffer = 0;
             foreach (var trader in traders)
             {
+                if (Plugin.TradersBlacklist.Contains(trader.LocalizedName)) continue;
+
                 var price = trader.GetUserItemPrice(item);
 
                 if (price == null) continue;
