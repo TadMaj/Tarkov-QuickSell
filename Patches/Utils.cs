@@ -9,12 +9,17 @@ namespace QuickSell.Patches
 {
     public class Utils
     {
-        public static void sendNotification(string text)
+        public static void SendNotification(string text)
         {
             NotificationManagerClass.DisplayMessageNotification(text, ENotificationDurationType.Long);
         }
 
-        public static void sendError(string text)
+        public static void SendDebugNotification(string text)
+        {
+            if (Plugin.Debug) NotificationManagerClass.DisplayMessageNotification(text, ENotificationDurationType.Long);
+        }
+
+        public static void SendError(string text)
         {
             NotificationManagerClass.DisplayWarningNotification(text, ENotificationDurationType.Long);
         }
