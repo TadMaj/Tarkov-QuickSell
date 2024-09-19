@@ -132,6 +132,13 @@ namespace QuickSell.Patches
                 var inventoryControllerClass = GetMainMenu().InventoryController;
                 if (inventoryControllerClass == null) Utils.SendError("Counldnt Load inventoryControllerClass");
 
+                var ragFairClass = GetSession().RagFair;
+                if (!ragFairClass.Available)
+                {
+                    Utils.SendError("Flea market is not available");
+                    return;
+                }
+
                 var lootItemClass = new LootItemClass[] { inventoryControllerClass.Inventory.Stash };
                 var helper = new RagfairOfferSellHelperClass(session.Profile, lootItemClass[0].Grids[0]);
                 if (!helper.HighlightedAtRagfair(item))
@@ -140,7 +147,6 @@ namespace QuickSell.Patches
                     return;
                 }
 
-                var ragFairClass = GetSession().RagFair;
 
                 var max_offers = ragFairClass.GetMaxOffersCount(ragFairClass.MyRating);
                 var current_offers = ragFairClass.MyOffersCount;

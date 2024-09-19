@@ -11,6 +11,8 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using QuickSell.Patches;
+using Comfort.Common;
+using EFT;
 namespace QuickSell.Patches
 {
     public class ConfigController : MonoBehaviour
@@ -18,11 +20,19 @@ namespace QuickSell.Patches
 
         void Update()
         {
+            if (Singleton<GameWorld>.Instantiated && Singleton<GameWorld>.Instance is not HideoutGameWorld) return;
+            if (Singleton<MenuUI>.Instantiated && Singleton<MenuUI>.Instance.HideoutAreaTransferItemsScreen.isActiveAndEnabled) return;
+
             if (Input.GetKeyDown(Plugin.KeybindFlea.Value.MainKey))
             {
                 Utils.SendDebugNotification("Flea Market keybind pressed");
 
                 Item item = SelectItem();
+                if (item == null)
+                {
+                    Utils.SendDebugNotification("No item selected");
+                    return;
+                }
 
                 ContextMenuPatch.ConfirmWindow(() => ContextMenuPatch.SellFlea(item), "on the flea");
                 
@@ -34,6 +44,11 @@ namespace QuickSell.Patches
                 Utils.SendDebugNotification("Traders Market keybind pressed");
 
                 Item item = SelectItem();
+                if (item == null)
+                {
+                    Utils.SendDebugNotification("No item selected");
+                    return;
+                }
                 ContextMenuPatch.ConfirmWindow(() => ContextMenuPatch.SellTrader(item), "to the traders");
             }
         }
