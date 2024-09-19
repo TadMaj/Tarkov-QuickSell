@@ -18,7 +18,7 @@ using UnityEngine;
 namespace QuickSell
 {
 
-    [BepInPlugin("QuickSell.UniqueGUID", "QuickSell", "1.0.2")]
+    [BepInPlugin("QuickSell.UniqueGUID", "QuickSell", "1.0.6")]
     public class Plugin : BaseUnityPlugin
     {
 
@@ -36,6 +36,8 @@ namespace QuickSell
         public static bool IgnoreFleaCapacity = false;
 
         public static bool Debug = false;
+
+        public static bool DisableKeybinds = false;
 
         internal static ConfigEntry<KeyboardShortcut> KeybindTraders;
         internal static ConfigEntry<KeyboardShortcut> KeybindFlea;
@@ -60,14 +62,15 @@ namespace QuickSell
                 LoadConfig(modPath);
 
 
+                if (!DisableKeybinds)
+                {
+                    KeybindFlea = Config.Bind("QuickSell", "SellFlea", new KeyboardShortcut(KeyCode.N), "Quicksell on the Flea");
+                    KeybindTraders = Config.Bind("QuickSell", "SellTraders", new KeyboardShortcut(KeyCode.M), "QuickSell to Traders");
 
-                KeybindFlea = Config.Bind("QuickSell", "SellFlea", new KeyboardShortcut(KeyCode.N), "Quicksell on the Flea");
-                KeybindTraders = Config.Bind("QuickSell", "SellTraders", new KeyboardShortcut(KeyCode.M), "QuickSell to Traders");
-
-
-
-                Hook.AddComponent<ConfigController>();
-                DontDestroyOnLoad(Hook);
+                    Hook.AddComponent<ConfigController>();
+                    DontDestroyOnLoad(Hook);
+                }
+               
             }
             catch (Exception e)
             {
@@ -116,6 +119,11 @@ namespace QuickSell
             if (config.ContainsKey("Debug"))
             {
                 Debug = (bool)config["Debug"];
+            }
+
+            if (config.ContainsKey("DisableKeybinds"))
+            {
+                Debug = (bool)config["DisableKeybinds"];
             }
         }
     }
