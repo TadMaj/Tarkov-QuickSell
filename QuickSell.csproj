@@ -112,6 +112,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MultiSelectInterop.cs" />
     <Compile Include="Patches\ConfigController.cs" />
     <Compile Include="Patches\QuickSell.cs" />
     <Compile Include="Patches\TraderInventoryLoadingPatch.cs" />

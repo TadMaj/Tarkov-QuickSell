@@ -23,6 +23,7 @@ using TMPro;
 using QuickSell.Patches;
 using SPT.Reflection.Utils;
 using EFT.UI.WeaponModding;
+using UIFixesInterop;
 
 namespace QuickSell.Patches
 {
@@ -72,17 +73,17 @@ namespace QuickSell.Patches
             Dictionary<string, DynamicInteractionClass> dynamicInteractions = Traverse.Create(contextInteractions).Field<Dictionary<string, DynamicInteractionClass>>("dictionary_0").Value;
             if (dynamicInteractions is null) return;
 
-            if (Plugin.EnableQuickSellFlea) dynamicInteractions["QuickSell (Flea)"] = new("QuickSell (Flea)", "QuickSell (Flea)", () => ConfirmWindow(() => SellFlea(item), "on the flea"), CacheResourcesPopAbstractClass.Pop<Sprite>("Characteristics/Icons/UnloadAmmo"));
-            if (Plugin.EnableQuickSellTraders) dynamicInteractions["QuickSell (Trader)"] = new("QuickSell (Trader)", "QuickSell (Trader)", () => ConfirmWindow(() => SellTrader(item), "to the traders"), CacheResourcesPopAbstractClass.Pop<Sprite>("Characteristics/Icons/UnloadAmmo"));
+            if (Plugin.EnableQuickSellFlea) dynamicInteractions["QuickSell (Flea)"] = new("QuickSell (Flea)", "QuickSell (Flea)", () => ConfirmWindow((i) => UIFixesHandler((i) => SellFlea(i), i), "on the flea", item), CacheResourcesPopAbstractClass.Pop<Sprite>("Characteristics/Icons/UnloadAmmo"));
+            if (Plugin.EnableQuickSellTraders) dynamicInteractions["QuickSell (Trader)"] = new("QuickSell (Trader)", "QuickSell (Trader)", () => ConfirmWindow((i) => UIFixesHandler((i) => SellTrader(i), i), "to the traders", item), CacheResourcesPopAbstractClass.Pop<Sprite>("Characteristics/Icons/UnloadAmmo"));
         }
 
-        public static void ConfirmWindow(Action callback, string source)
+        public static void ConfirmWindow(Action<Item> callback, string source, Item item)
         {
             if (Plugin.ShowConfirmationDialog)
             {
-                ItemUiContext.Instance.ShowMessageWindow(string.Format("Are you sure you want to sell this item {0}", source).Localized(null), callback, () => { }, null, 0f, false, TextAlignmentOptions.Center);
+                ItemUiContext.Instance.ShowMessageWindow(string.Format("Are you sure you want to sell this item {0}", source).Localized(null), () => callback(item), () => { }, null, 0f, false, TextAlignmentOptions.Center);
             }
-            else callback();
+            else callback(item);
         }
 
         public static void SellTrader(Item item)
@@ -244,6 +245,36 @@ namespace QuickSell.Patches
         private static void forceReloadTraders()
         {        
             traders = GetSession().Traders.Where(new Func<TraderClass, bool>(MainMenuController.Class1271.class1271_0.method_4)).ToArray<TraderClass>();
+        }
+
+        public static void UIFixesHandler(Action<Item> callback, Item item)
+        {
+            Utils.SendDebugNotification("Enabled: " + Plugin.EnableUIFixesIntegration);
+            Utils.SendDebugNotification("Count : " + MultiSelect.Count);
+
+            if (item == null) return;
+            if (!Plugin.EnableUIFixesIntegration)
+            {
+                callback(item);
+                return;
+            }
+
+            if (MultiSelect.Count <= 1)
+            {
+                callback(item);
+                return;
+            }
+
+            if (!MultiSelect.Items.Contains(item))
+            {
+                callback(item);
+                return;
+            }
+
+
+            MultiSelect.Apply((i) => Utils.SendDebugNotification("Selected item: "+ i.Id), ItemUiContext.Instance);
+            
+            MultiSelect.Apply((i) => callback(i), ItemUiContext.Instance);
         }
 
     }

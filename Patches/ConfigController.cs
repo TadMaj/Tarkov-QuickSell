@@ -34,7 +34,7 @@ namespace QuickSell.Patches
                     return;
                 }
 
-                ContextMenuPatch.ConfirmWindow(() => ContextMenuPatch.SellFlea(item), "on the flea");
+                ContextMenuPatch.ConfirmWindow((i) => ContextMenuPatch.UIFixesHandler((i) => ContextMenuPatch.SellFlea(i), i), "on the flea", item);
                 
 
             }
@@ -49,7 +49,7 @@ namespace QuickSell.Patches
                     Utils.SendDebugNotification("No item selected");
                     return;
                 }
-                ContextMenuPatch.ConfirmWindow(() => ContextMenuPatch.SellTrader(item), "to the traders");
+                ContextMenuPatch.ConfirmWindow((i) => ContextMenuPatch.UIFixesHandler((i) => ContextMenuPatch.SellTrader(i), i), "to the traders", item);
             }
         }
 

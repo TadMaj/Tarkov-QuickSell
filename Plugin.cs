@@ -14,11 +14,13 @@ using SPT.Common.Http;
 using static GClass1750;
 using BepInEx.Configuration;
 using UnityEngine;
+using UIFixesInterop;
 
 namespace QuickSell
 {
 
-    [BepInPlugin("QuickSell.UniqueGUID", "QuickSell", "1.0.6")]
+    [BepInPlugin("QuickSell.UniqueGUID", "QuickSell", "1.1.0")]
+    [BepInDependency("Tyfon.UIFixes", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin
     {
 
@@ -38,6 +40,8 @@ namespace QuickSell
         public static bool Debug = false;
 
         public static bool DisableKeybinds = false;
+
+        public static bool EnableUIFixesIntegration = false;
 
         internal static ConfigEntry<KeyboardShortcut> KeybindTraders;
         internal static ConfigEntry<KeyboardShortcut> KeybindFlea;
@@ -123,7 +127,12 @@ namespace QuickSell
 
             if (config.ContainsKey("DisableKeybinds"))
             {
-                Debug = (bool)config["DisableKeybinds"];
+                DisableKeybinds = (bool)config["DisableKeybinds"];
+            }
+
+            if (config.ContainsKey("EnableUIFixesIntegration"))
+            {
+                EnableUIFixesIntegration = (bool)config["EnableUIFixesIntegration"];
             }
         }
     }
