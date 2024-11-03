@@ -1,6 +1,6 @@
 ﻿using EFT;
 using EFT.UI;
-using EFT.Communications;
+using UnityEngine;
 using EFT.InventoryLogic;
 using HarmonyLib;
 using QuickSell;
@@ -9,20 +9,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+
 using UnityEngine;
-using JetBrains.Annotations;
-using BepInEx.Logging;
+
 using Comfort.Common;
-using EFT.UI.Screens;
-using System.Threading;
+
 using EFT.UI.Ragfair;
-using static System.Collections.Specialized.BitVector32;
+
 using TMPro;
-using QuickSell.Patches;
+
 using SPT.Reflection.Utils;
-using EFT.UI.WeaponModding;
+
 using UIFixesInterop;
 
 namespace QuickSell.Patches
@@ -158,7 +155,7 @@ namespace QuickSell.Patches
                     return;
                 }
 
-                var fleaAction = FleaCallbackFactory(item, ragFairClass);
+                var fleaAction = FleaCallbackFactory(item, ragFairClass, session);
                 ragFairClass.GetMarketPrices(item.TemplateId, fleaAction);
 
 
@@ -169,8 +166,7 @@ namespace QuickSell.Patches
                 Plugin.LogSource.LogWarning(ex.ToString());
             }
         }
-        
-        public static Action<ItemMarketPrices> FleaCallbackFactory(Item item, RagFairClass ragFair)
+        public static Action<ItemMarketPrices> FleaCallbackFactory(Item item, RagFairClass ragFair, ISession session)
         {
             void res(ItemMarketPrices result)
             {
@@ -181,7 +177,7 @@ namespace QuickSell.Patches
                         new GClass1859 { _tpl = GClass2531.GetCurrencyId(ECurrencyType.RUB), count = Math.Ceiling(result.avg/100.0*Plugin.AvgPricePercent), onlyFunctional = true },
                     ];
 
-                    ragFair.AddOffer(false, [item.Id], [.. list], new Action(PlaySellSound));
+                    session.RagfairAddOffer(false, [item.Id], [.. list], new Callback(FleaSellerFixer));
                 }
                 catch (Exception ex)
                 {
@@ -236,12 +232,20 @@ namespace QuickSell.Patches
         private static void PlaySellSound(IResult result)
         {
             if (result.Succeed) Singleton<GUISounds>.Instance.PlayUISound(EUISoundType.TradeOperationComplete);
-        }
-        private static void PlaySellSound()
-        {
-            Singleton<GUISounds>.Instance.PlayUISound(EUISoundType.TradeOperationComplete);
-        }
 
+        }
+        //For some reason selling on the flea causes black screens if the flea market screen is still open
+        // This is a janky fix for that issue, i am not putting more tim
+        private static void FleaSellerFixer(IResult result)
+        {
+            if (!result.Succeed) return;
+
+            var rotator = GameObject.Find("/Rotator parent");
+            if (rotator != null) GameObject.Destroy(rotator);
+
+
+            PlaySellSound(result);
+        }
         private static void forceReloadTraders()
         {        
             traders = GetSession().Traders.Where(new Func<TraderClass, bool>(MainMenuController.Class1271.class1271_0.method_4)).ToArray<TraderClass>();
