@@ -10,8 +10,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-using UnityEngine;
-
 using Comfort.Common;
 
 using EFT.UI.Ragfair;
@@ -21,6 +19,7 @@ using TMPro;
 using SPT.Reflection.Utils;
 
 using UIFixesInterop;
+using EFT.Hideout;
 
 namespace QuickSell.Patches
 {
@@ -36,7 +35,7 @@ namespace QuickSell.Patches
         }
         private static MainMenuController GetMainMenu()
         {
-           return (MainMenuController)typeof(TarkovApplication).GetField("mainMenuController", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(GetApp());
+           return (MainMenuController) typeof(TarkovApplication).GetField("mainMenuController", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(GetApp());
         }
         private static ISession GetSession()
         {
@@ -51,7 +50,7 @@ namespace QuickSell.Patches
         [PatchPrefix]
         private static void Prefix(ItemInfoInteractionsAbstractClass<EItemInfoButton> contextInteractions, IReadOnlyDictionary<EItemInfoButton, string> names, Item item)
         {
-            if (contextInteractions is not GClass3042) return;
+            if (contextInteractions is not GClass3402 gclass) return;
 
             if (item == null)
             {
@@ -63,9 +62,9 @@ namespace QuickSell.Patches
             if (Singleton<GameWorld>.Instantiated && Singleton<GameWorld>.Instance is not HideoutGameWorld) return;
             if (Singleton<MenuUI>.Instance.HideoutAreaTransferItemsScreen.isActiveAndEnabled) return;
 
-            if (item.GetAllParentItems().Any(x => x is EquipmentClass)) return;
+            if (item.GetAllParentItems().Any(x => x is InventoryEquipment)) return;
             
-            if (item.Parent.Item.TemplateId == "55d7217a4bdc2d86028b456d") return;
+            if (item.Parent.Container.ParentItem.TemplateId == "55d7217a4bdc2d86028b456d") return;
 
             Dictionary<string, DynamicInteractionClass> dynamicInteractions = Traverse.Create(contextInteractions).Field<Dictionary<string, DynamicInteractionClass>>("dictionary_0").Value;
             if (dynamicInteractions is null) return;
@@ -119,10 +118,10 @@ namespace QuickSell.Patches
                 var tradingScreen = Singleton<MenuUI>.Instance.TradingScreen;
                 if (tradingScreen == null) Utils.SendError("Counldnt Load tradingScreen");
 
-                RagfairScreen flea = (RagfairScreen)typeof(TradingScreen).GetField("_ragfairScreen", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(tradingScreen);
-                if (flea == null) Utils.SendError("Counldnt Load flea");
+                //RagfairScreen flea = (RagfairScreen)typeof(TradingScreen).GetField("_ragfairScreen", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(tradingScreen);
+                //if (flea == null) Utils.SendError("Counldnt Load flea");
 
-                flea.method_2();
+                //flea.method_4();
 
                 var session = GetSession();
                 if (session == null) Utils.SendError("Counldnt Load session");
@@ -137,8 +136,8 @@ namespace QuickSell.Patches
                     return;
                 }
 
-                var lootItemClass = new LootItemClass[] { inventoryControllerClass.Inventory.Stash };
-                var helper = new RagfairOfferSellHelperClass(session.Profile, lootItemClass[0].Grids[0]);
+                var lootItemClass = new CompoundItem[] { inventoryControllerClass.Inventory.Stash };
+                var helper = new RagfairOfferSellHelperClass(lootItemClass[0].Grids[0], inventoryControllerClass);
                 if (!helper.HighlightedAtRagfair(item))
                 {
                     Utils.SendError("Item cannot be sold on the flea");
@@ -158,8 +157,6 @@ namespace QuickSell.Patches
                 var fleaAction = FleaCallbackFactory(item, ragFairClass, session);
                 ragFairClass.GetMarketPrices(item.TemplateId, fleaAction);
 
-
-
             } catch (Exception ex)
             {
                 Utils.SendError(ex.ToString());
@@ -172,12 +169,15 @@ namespace QuickSell.Patches
             {
                 try
                 {
-                    List<GClass1859> list =
+                    List<GClass2059> list =
                     [
-                        new GClass1859 { _tpl = GClass2531.GetCurrencyId(ECurrencyType.RUB), count = Math.Ceiling(result.avg/100.0*Plugin.AvgPricePercent), onlyFunctional = true },
+                        new GClass2059 { _tpl = GClass2867.GetCurrencyId(ECurrencyType.RUB), count = Math.Ceiling(result.avg/100.0*Plugin.AvgPricePercent), onlyFunctional = true },
                     ];
 
+                    
+
                     session.RagfairAddOffer(false, [item.Id], [.. list], new Callback(FleaSellerFixer));
+
                 }
                 catch (Exception ex)
                 {
@@ -248,7 +248,7 @@ namespace QuickSell.Patches
         }
         private static void forceReloadTraders()
         {        
-            traders = GetSession().Traders.Where(new Func<TraderClass, bool>(MainMenuController.Class1271.class1271_0.method_4)).ToArray<TraderClass>();
+            traders = GetSession().Traders.Where(new Func<TraderClass, bool>(MainMenuController.Class1378.class1378_0.method_3)).ToArray<TraderClass>();
         }
 
         public static void UIFixesHandler(Action<Item> callback, Item item)

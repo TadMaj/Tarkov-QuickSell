@@ -10,8 +10,6 @@ using QuickSell.Patches;
 using System.IO;
 using EFT.Communications;
 using Newtonsoft.Json.Linq;
-using SPT.Common.Http;
-using static GClass1750;
 using BepInEx.Configuration;
 using UnityEngine;
 using UIFixesInterop;
@@ -19,7 +17,7 @@ using UIFixesInterop;
 namespace QuickSell
 {
 
-    [BepInPlugin("QuickSell.UniqueGUID", "QuickSell", "1.1.0")]
+    [BepInPlugin("QuickSell.UniqueGUID", "QuickSell", "2.0.0")]
     [BepInDependency("Tyfon.UIFixes", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin
     {
