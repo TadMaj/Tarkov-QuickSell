@@ -118,11 +118,6 @@ namespace QuickSell.Patches
                 var tradingScreen = Singleton<MenuUI>.Instance.TradingScreen;
                 if (tradingScreen == null) Utils.SendError("Counldnt Load tradingScreen");
 
-                //RagfairScreen flea = (RagfairScreen)typeof(TradingScreen).GetField("_ragfairScreen", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(tradingScreen);
-                //if (flea == null) Utils.SendError("Counldnt Load flea");
-
-                //flea.method_4();
-
                 var session = GetSession();
                 if (session == null) Utils.SendError("Counldnt Load session");
 
@@ -176,7 +171,7 @@ namespace QuickSell.Patches
 
                     
 
-                    session.RagfairAddOffer(false, [item.Id], [.. list], new Callback(FleaSellerFixer));
+                    session.RagfairAddOffer(false, [item.Id], [.. list], new Callback(PlaySellSound));
 
                 }
                 catch (Exception ex)
@@ -233,18 +228,6 @@ namespace QuickSell.Patches
         {
             if (result.Succeed) Singleton<GUISounds>.Instance.PlayUISound(EUISoundType.TradeOperationComplete);
 
-        }
-        //For some reason selling on the flea causes black screens if the flea market screen is still open
-        // This is a janky fix for that issue, i am not putting more tim
-        private static void FleaSellerFixer(IResult result)
-        {
-            if (!result.Succeed) return;
-
-            var rotator = GameObject.Find("/Rotator parent");
-            if (rotator != null) GameObject.Destroy(rotator);
-
-
-            PlaySellSound(result);
         }
         private static void forceReloadTraders()
         {        

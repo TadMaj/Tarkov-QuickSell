@@ -58,7 +58,8 @@ namespace QuickSell.Patches
             var preloader = GameObject.Find("/Preloader UI/Preloader UI");
             if (preloader == null)
             {
-                Utils.SendError("Preloader not found");
+                Utils.SendDebugNotification("Preloader not found");
+                return null;
             }
             var raycaster = preloader.GetComponent<GraphicRaycaster>() ?? preloader.AddComponent<GraphicRaycaster>();
             PointerEventData eventData = new(EventSystem.current)
@@ -80,7 +81,8 @@ namespace QuickSell.Patches
             var target = GameObject.Find("InventoryScreen");
             if (target == null)
             {
-                Utils.SendError("InventoryScreen not found");
+                Utils.SendDebugNotification("InventoryScreen not found");
+                return null;
             }
 
             raycaster = target.GetComponent<GraphicRaycaster>() ?? target.AddComponent<GraphicRaycaster>();
