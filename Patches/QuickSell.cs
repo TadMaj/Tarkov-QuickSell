@@ -9,17 +9,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-
 using Comfort.Common;
-
 using EFT.UI.Ragfair;
-
 using TMPro;
-
 using SPT.Reflection.Utils;
-
 using UIFixesInterop;
 using EFT.Hideout;
+using JetBrains.Annotations;
 
 namespace QuickSell.Patches
 {
@@ -33,51 +29,132 @@ namespace QuickSell.Patches
         {
             return ClientAppUtils.GetMainApp();
         }
-        private static MainMenuController GetMainMenu()
+
+        private static MainMenuControllerClass GetMainMenu()
         {
-           return (MainMenuController) typeof(TarkovApplication).GetField("mainMenuController", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(GetApp());
+            var app = GetApp();
+            if (app == null)
+            {
+                Utils.SendError("TarkovApplication instance is null");
+                return null;
+            }
+
+            var fieldInfo = typeof(TarkovApplication)
+                .GetField("_menuOperation", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (fieldInfo == null)
+            {
+                Utils.SendError("Field '_menuOperation' not found in TarkovApplication");
+                return null;
+            }
+
+            var mainMenuController = fieldInfo.GetValue(app) as MainMenuControllerClass;
+            if (mainMenuController == null)
+            {
+                Utils.SendError("mainMenuControllerClass is null");
+            }
+
+            return mainMenuController;
         }
+
+
         private static ISession GetSession()
         {
-            return (ISession)typeof(MainMenuController).GetField("iSession", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(GetMainMenu());
+            var mainMenuController = GetMainMenu();
+            if (mainMenuController == null)
+            {
+                Utils.SendError("MainMenuControllerClass is null");
+                return null;
+            }
+
+            var session = mainMenuController.iSession;
+            if (session == null)
+            {
+                Utils.SendError("iSession is null");
+            }
+
+            return session;
         }
 
         protected override MethodBase GetTargetMethod()
         {
-            return typeof(SimpleContextMenu).GetMethod(nameof(SimpleContextMenu.method_0)).MakeGenericMethod(typeof(EItemInfoButton));
+            // Retrieve method info for method_0 on SimpleContextMenu
+            var methodInfo = typeof(SimpleContextMenu).GetMethod(nameof(SimpleContextMenu.method_0));
+            if (methodInfo == null)
+            {
+                Utils.SendError("SimpleContextMenu.method_0 not found");
+                return null;
+            }
+
+            // Create a generic method with the specified type parameter
+            var targetMethod = methodInfo.MakeGenericMethod(typeof(EItemInfoButton));
+
+            return targetMethod;
         }
 
-        [PatchPrefix]
-        private static void Prefix(ItemInfoInteractionsAbstractClass<EItemInfoButton> contextInteractions, IReadOnlyDictionary<EItemInfoButton, string> names, Item item)
+        [CanBeNull]
+        private static ITraderInteractions GetTraderInteractions(TraderClass bestTrader)
         {
-            if (contextInteractions is not GClass3402 gclass) return;
+            ITraderInteractions interactions = null;
+
+            var fieldInfo = typeof(TraderClass)
+                .GetField("iTraderInteractions", BindingFlags.NonPublic | BindingFlags.Instance);
+            
+            if (fieldInfo != null)
+            {
+                interactions = fieldInfo.GetValue(bestTrader) as ITraderInteractions;
+                if (interactions == null)
+                {
+                    Utils.SendError("iTraderInteractions is null for the provided trader instance");
+                }
+            }
+            
+            return interactions;
+        }
+
+
+        [PatchPrefix]
+        private static void Prefix(ItemInfoInteractionsAbstractClass<EItemInfoButton> contextInteractions,
+            IReadOnlyDictionary<EItemInfoButton, string> names, Item item)
+        {
+            if (contextInteractions is not GClass3466 gclass) return;
 
             if (item == null)
             {
                 Utils.SendError("No item is selected");
                 return;
             }
-            ItemContextAbstractClass itemContext = Traverse.Create(contextInteractions).Field<ItemContextAbstractClass>("itemContextAbstractClass").Value;
+
+            ItemContextAbstractClass itemContext = Traverse.Create(contextInteractions)
+                .Field<ItemContextAbstractClass>("itemContextAbstractClass").Value;
             if (itemContext.ViewType != EItemViewType.Inventory) return;
             if (Singleton<GameWorld>.Instantiated && Singleton<GameWorld>.Instance is not HideoutGameWorld) return;
             if (Singleton<MenuUI>.Instance.HideoutAreaTransferItemsScreen.isActiveAndEnabled) return;
 
             if (item.GetAllParentItems().Any(x => x is InventoryEquipment)) return;
-            
+
             if (item.Parent.Container.ParentItem.TemplateId == "55d7217a4bdc2d86028b456d") return;
 
-            Dictionary<string, DynamicInteractionClass> dynamicInteractions = Traverse.Create(contextInteractions).Field<Dictionary<string, DynamicInteractionClass>>("dictionary_0").Value;
+            Dictionary<string, DynamicInteractionClass> dynamicInteractions = Traverse.Create(contextInteractions)
+                .Field<Dictionary<string, DynamicInteractionClass>>("dictionary_0").Value;
             if (dynamicInteractions is null) return;
 
-            if (Plugin.EnableQuickSellFlea) dynamicInteractions["QuickSell (Flea)"] = new("QuickSell (Flea)", "QuickSell (Flea)", () => ConfirmWindow((i) => UIFixesHandler((i) => SellFlea(i), i), "on the flea", item), CacheResourcesPopAbstractClass.Pop<Sprite>("Characteristics/Icons/UnloadAmmo"));
-            if (Plugin.EnableQuickSellTraders) dynamicInteractions["QuickSell (Trader)"] = new("QuickSell (Trader)", "QuickSell (Trader)", () => ConfirmWindow((i) => UIFixesHandler((i) => SellTrader(i), i), "to the traders", item), CacheResourcesPopAbstractClass.Pop<Sprite>("Characteristics/Icons/UnloadAmmo"));
+            if (Plugin.EnableQuickSellFlea)
+                dynamicInteractions["QuickSell (Flea)"] = new("QuickSell (Flea)", "QuickSell (Flea)",
+                    () => ConfirmWindow((i) => UIFixesHandler((i) => SellFlea(i), i), "on the flea", item),
+                    CacheResourcesPopAbstractClass.Pop<Sprite>("Characteristics/Icons/UnloadAmmo"));
+            if (Plugin.EnableQuickSellTraders)
+                dynamicInteractions["QuickSell (Trader)"] = new("QuickSell (Trader)", "QuickSell (Trader)",
+                    () => ConfirmWindow((i) => UIFixesHandler((i) => SellTrader(i), i), "to the traders", item),
+                    CacheResourcesPopAbstractClass.Pop<Sprite>("Characteristics/Icons/UnloadAmmo"));
         }
 
         public static void ConfirmWindow(Action<Item> callback, string source, Item item)
         {
             if (Plugin.ShowConfirmationDialog)
             {
-                ItemUiContext.Instance.ShowMessageWindow(string.Format("Are you sure you want to sell this item {0}", source).Localized(null), () => callback(item), () => { }, null, 0f, false, TextAlignmentOptions.Center);
+                ItemUiContext.Instance.ShowMessageWindow(
+                    $"Are you sure you want to sell this item {source}".Localized(),
+                    () => callback(item), () => { }, null, 0f, false, TextAlignmentOptions.Center);
             }
             else callback(item);
         }
@@ -95,31 +172,40 @@ namespace QuickSell.Patches
                 }
 
                 var price = bestTrader.GetUserItemPrice(item).Value.Amount;
+
+                Utils.SendNotification($"Profit: {price}");
+
+                ITraderInteractions interactions = bestTrader.iTraderInteractions;
+
+                if (interactions is null)
+                {
+                    Utils.SendError("Failed to get trader interactions");
+                    return;
+                }
                 
-                Utils.SendNotification(string.Format("Profit: {0}", price));
-
-                ITraderInteractions interactions = (ITraderInteractions) typeof(TraderClass).GetField("iTraderInteractions", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(bestTrader);
-                interactions.ConfirmSell(bestTrader.Id, [new EFT.Trading.TradingItemReference { Item = item, Count = item.StackObjectsCount }], price, new Callback(PlaySellSound));
-
+                interactions.ConfirmSell(
+                    bestTrader.Id,
+                    [new EFT.Trading.TradingItemReference { Item = item, Count = item.StackObjectsCount }], 
+                    price, 
+                    PlaySellSound
+                );
             }
             catch (Exception ex)
             {
                 Utils.SendError(ex.ToString());
                 Plugin.LogSource.LogWarning(ex.ToString());
             }
-
-
         }
 
-        public static void SellFlea(Item item) 
+        public static void SellFlea(Item item)
         {
             try
             {
                 var tradingScreen = Singleton<MenuUI>.Instance.TradingScreen;
-                if (tradingScreen == null) Utils.SendError("Counldnt Load tradingScreen");
+                if (!tradingScreen) Utils.SendError("Could not Load tradingScreen");
 
                 var session = GetSession();
-                if (session == null) Utils.SendError("Counldnt Load session");
+                if (session == null) Utils.SendError("Could not Load session");
 
                 var inventoryControllerClass = GetMainMenu().InventoryController;
                 if (inventoryControllerClass == null) Utils.SendError("Counldnt Load inventoryControllerClass");
@@ -151,38 +237,66 @@ namespace QuickSell.Patches
 
                 var fleaAction = FleaCallbackFactory(item, ragFairClass, session);
                 ragFairClass.GetMarketPrices(item.TemplateId, fleaAction);
-
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 Utils.SendError(ex.ToString());
                 Plugin.LogSource.LogWarning(ex.ToString());
             }
         }
+
         public static Action<ItemMarketPrices> FleaCallbackFactory(Item item, RagFairClass ragFair, ISession session)
         {
             void res(ItemMarketPrices result)
             {
                 try
                 {
-                    List<GClass2059> list =
+                    List<GClass2102> list =
                     [
-                        new GClass2059 { _tpl = GClass2867.GetCurrencyId(ECurrencyType.RUB), count = Math.Ceiling(result.avg/100.0*Plugin.AvgPricePercent), onlyFunctional = true },
+                        new()
+                        {
+                            _tpl = GClass2934.GetCurrencyId(ECurrencyType.RUB),
+                            count = Math.Ceiling(result.avg / 100.0 * Plugin.AvgPricePercent), onlyFunctional = true
+                        },
                     ];
 
-                    
 
                     session.RagfairAddOffer(false, [item.Id], [.. list], new Callback(PlaySellSound));
-
                 }
                 catch (Exception ex)
                 {
                     Utils.SendError(ex.ToString());
                     Plugin.LogSource.LogWarning(ex.ToString());
                 }
-
             }
 
             return res;
+        }
+
+        private static SupplyData GetTraderSupplyData()
+        {
+            SupplyData supplyData = null;
+
+            var trader = traders.First();
+            if (trader == null)
+            {
+                Utils.SendError("No trader found in the collection.");
+            }
+            else
+            {
+                var fieldInfo = typeof(TraderClass)
+                    .GetField("supplyData_0", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (fieldInfo != null)
+                {
+                    supplyData = fieldInfo.GetValue(trader) as SupplyData;
+                    if (supplyData == null)
+                    {
+                        Utils.SendError("supplyData_0 is null for the provided trader instance.");
+                    }
+                }
+            }
+
+            return supplyData;
         }
 
         // Returns Trader with best offer of null if unsellable
@@ -190,18 +304,24 @@ namespace QuickSell.Patches
         {
             if (traders == null)
             {
-                forceReloadTraders();
-
+                ForceReloadTraders();
             }
 
-            var supplyData_0 = (SupplyData)typeof(TraderClass).GetField("supplyData_0", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(traders.First());
-            if (supplyData_0 == null)
+            var supplyData = GetTraderSupplyData();
+            if (supplyData == null)
             {
-                forceReloadTraders();
+                ForceReloadTraders();
             }
 
             TraderClass best = null;
             int bestOffer = 0;
+            
+            if (traders == null)
+            {
+                Utils.SendError("Traders is null even after force reloading. Cannot sell.");
+                return null;
+            }
+            
             foreach (var trader in traders)
             {
                 if (Plugin.TradersBlacklist.Contains(trader.LocalizedName)) continue;
@@ -215,23 +335,30 @@ namespace QuickSell.Patches
                     bestOffer = price.Value.Amount;
                     continue;
                 }
+
                 if (bestOffer < price.Value.Amount)
                 {
                     best = trader;
                     bestOffer = price.Value.Amount;
-                    continue;
                 }
             }
+            
             return best;
         }
+
         private static void PlaySellSound(IResult result)
         {
             if (result.Succeed) Singleton<GUISounds>.Instance.PlayUISound(EUISoundType.TradeOperationComplete);
-
         }
-        private static void forceReloadTraders()
-        {        
-            traders = GetSession().Traders.Where(new Func<TraderClass, bool>(MainMenuController.Class1378.class1378_0.method_3)).ToArray<TraderClass>();
+
+        private static void ForceReloadTraders()
+        {
+            traders = GetSession().Traders
+                    /*
+                     * Look for return !trader.Settings.AvailableInRaid; in MainMenuControllerClass in dnspy
+                     */
+                .Where(MainMenuControllerClass.Class1394.class1394_0.method_4)
+                .ToArray();
         }
 
         public static void UIFixesHandler(Action<Item> callback, Item item)
@@ -259,10 +386,9 @@ namespace QuickSell.Patches
             }
 
 
-            MultiSelect.Apply((i) => Utils.SendDebugNotification("Selected item: "+ i.Id), ItemUiContext.Instance);
-            
+            MultiSelect.Apply((i) => Utils.SendDebugNotification("Selected item: " + i.Id), ItemUiContext.Instance);
+
             MultiSelect.Apply((i) => callback(i), ItemUiContext.Instance);
         }
-
     }
 }
