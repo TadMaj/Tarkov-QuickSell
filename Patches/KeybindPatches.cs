@@ -37,12 +37,12 @@ namespace QuickSell.Patches
             }
 
             [PatchPostfix]
-            private static void Postfix(ItemUiContext __instance, object ___itemContextClass)
+            private static void Postfix(ItemUiContext __instance, object ____dragItemContext)
             {
                 if (Plugin.KeybindFlea == null && Plugin.KeybindTraders == null)
                     return;
 
-                if (___itemContextClass != null)
+                if (____dragItemContext != null)
                     return;
 
                 if (Singleton<GameWorld>.Instantiated && Singleton<GameWorld>.Instance is not HideoutGameWorld)
@@ -56,7 +56,7 @@ namespace QuickSell.Patches
                 if (TextboxActive())
                     return;
 
-                var itemContext = __instance.ItemContextAbstractClass;
+                var itemContext = __instance.CurrentItemContext;
                 var hasMultiSelection = Plugin.EnableUIFixesIntegration && MultiSelect.Count > 0;
                 if (itemContext == null && !hasMultiSelection)
                     return;

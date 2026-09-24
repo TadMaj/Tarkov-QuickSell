@@ -5,6 +5,7 @@ using EFT.InventoryLogic;
 using EFT.Trading;
 using EFT.UI;
 using EFT.UI.Ragfair;
+using EFT.Utilities;
 using JetBrains.Annotations;
 using SPT.Reflection.Patching;
 using SPT.Reflection.Utils;
@@ -21,14 +22,14 @@ namespace QuickSell.Patches
     // This is the main patch handling most of the logic
     internal class ContextMenuPatch : ModulePatch
     {
-        private static TraderClass[] traders = null;
+        private static Trader[] traders = null;
 
         private static TarkovApplication GetApp()
         {
             return ClientAppUtils.GetMainApp();
         }
 
-        private static MainMenuControllerClass GetMainMenu()
+        private static MainMenuShowOperation GetMainMenu()
         {
             var app = GetApp();
             if (app == null)
@@ -38,35 +39,35 @@ namespace QuickSell.Patches
             }
 
             var fieldInfo = typeof(TarkovApplication)
-                .GetField("mainMenuControllerClass", BindingFlags.NonPublic | BindingFlags.Instance);
+                .GetField("_menuOperation", BindingFlags.NonPublic | BindingFlags.Instance);
             if (fieldInfo == null)
             {
-                Utils.SendError("Field 'mainMenuControllerClass' not found in TarkovApplication");
+                Utils.SendError("Field '_menuOperation' not found in TarkovApplication");
                 return null;
             }
 
-            var mainMenuController = fieldInfo.GetValue(app) as MainMenuControllerClass;
+            var mainMenuController = fieldInfo.GetValue(app) as MainMenuShowOperation;
             if (mainMenuController == null)
             {
-                Utils.SendError("mainMenuControllerClass is null");
+                Utils.SendError("_menuOperation is null");
             }
 
             return mainMenuController;
         }
 
-        private static ISession GetSession()
+        private static IEftSession GetSession()
         {
             var mainMenuController = GetMainMenu();
             if (mainMenuController == null)
             {
-                Utils.SendError("MainMenuControllerClass is null");
+                Utils.SendError("MainMenuShowOperation is null");
                 return null;
             }
 
-            var session = mainMenuController.ISession;
+            var session = mainMenuController.iEftSession;
             if (session == null)
             {
-                Utils.SendError("ISession is null");
+                Utils.SendError("IEftSession is null");
             }
 
             return session;
@@ -75,12 +76,12 @@ namespace QuickSell.Patches
         protected override MethodBase GetTargetMethod()
         {
             var methodInfo = typeof(SimpleContextMenu).GetMethod(
-                "method_0",
+                "ShowMenu",
                 BindingFlags.Public | BindingFlags.Instance);
 
             if (methodInfo == null)
             {
-                Utils.SendError("SimpleContextMenu.method_0 not found");
+                Utils.SendError("SimpleContextMenu.ShowMenu not found");
                 return null;
             }
 
@@ -88,12 +89,12 @@ namespace QuickSell.Patches
         }
 
         [CanBeNull]
-        private static ITraderInteractions GetTraderInteractions(TraderClass bestTrader)
+        private static ITradingSession GetTraderInteractions(Trader bestTrader)
         {
-            var interactions = bestTrader.ITraderInteractions;
+            var interactions = bestTrader._trading;
             if (interactions == null)
             {
-                Utils.SendError("ITraderInteractions is null for the provided trader instance");
+                Utils.SendError("ITradingSession is null for the provided trader instance");
             }
 
             return interactions;
@@ -101,10 +102,10 @@ namespace QuickSell.Patches
 
         [PatchPrefix]
         private static void Prefix(
-            ItemInfoInteractionsAbstractClass<EItemInfoButton> contextInteractions,
+            ContextInteractions<EItemInfoButton> contextInteractions,
             Item item)
         {
-            if (contextInteractions is not GClass3758) return;
+            if (contextInteractions is not InventoryItemContextInteractions) return;
 
             if (item == null)
             {
@@ -112,7 +113,7 @@ namespace QuickSell.Patches
                 return;
             }
 
-            var itemContext = (contextInteractions as ContextInteractionsAbstractClass)?.ItemContextAbstractClass;
+            var itemContext = (contextInteractions as BaseItemContextInteractions)?.ItemContext;
             if (itemContext == null || itemContext.ViewType != EItemViewType.Inventory) return;
             if (Singleton<GameWorld>.Instantiated && Singleton<GameWorld>.Instance is not HideoutGameWorld) return;
             if (Singleton<MenuUI>.Instantiated &&
@@ -121,14 +122,14 @@ namespace QuickSell.Patches
             if (item.GetAllParentItems().Any(x => x is InventoryEquipment)) return;
             if (item.Parent.Container.ParentItem.TemplateId == "55d7217a4bdc2d86028b456d") return;
 
-            var dynamicInteractions = contextInteractions.Dictionary_0;
+            var dynamicInteractions = contextInteractions._dynamicInteractions;
             if (dynamicInteractions is null) return;
 
-            var unloadSprite = CacheResourcesPopAbstractClass.Pop<Sprite>("Characteristics/Icons/UnloadAmmo");
+            var unloadSprite = ResourcesCache.Pop<Sprite>("Characteristics/Icons/UnloadAmmo");
 
             if (Plugin.EnableQuickSellFlea)
             {
-                dynamicInteractions["QuickSell (Flea)"] = new DynamicInteractionClass(
+                dynamicInteractions["QuickSell (Flea)"] = new DynamicContextInteraction(
                     "QuickSell (Flea)",
                     "QuickSell (Flea)",
                     () => SellToFlea(item),
@@ -137,7 +138,7 @@ namespace QuickSell.Patches
 
             if (Plugin.EnableQuickSellTraders)
             {
-                dynamicInteractions["QuickSell (Trader)"] = new DynamicInteractionClass(
+                dynamicInteractions["QuickSell (Trader)"] = new DynamicContextInteraction(
                     "QuickSell (Trader)",
                     "QuickSell (Trader)",
                     () => SellToTraders(item),
@@ -240,7 +241,7 @@ namespace QuickSell.Patches
                 var mainMenu = GetMainMenu();
                 if (mainMenu == null) return;
                 var inventoryController = mainMenu.InventoryController;
-                if (inventoryController == null || inventoryController is not TraderControllerClass traderController)
+                if (inventoryController == null || inventoryController is not ItemController traderController)
                 {
                     Utils.SendError("Could not load inventory");
                     return;
@@ -251,7 +252,7 @@ namespace QuickSell.Patches
                     Utils.SendError("Flea market is not available");
                     return;
                 }
-                var helper = new RagfairOfferSellHelperClass(inventoryController.Inventory.Stash.Grids[0], traderController);
+                var helper = new RagfairNewOfferContext(inventoryController.Inventory.Stash.Grids[0], traderController);
                 var validItems = items.Where(i => helper.HighlightedAtRagfair(i)).ToList();
                 if (validItems.Count == 0)
                 {
@@ -273,7 +274,7 @@ namespace QuickSell.Patches
                         try
                         {
                             var price = (int)Math.Ceiling(result.avg / 100.0 * Plugin.AvgPricePercent);
-                            var fee = (int)Math.Ceiling(FleaTaxCalculatorAbstractClass.CalculateTaxPrice(single, single.StackObjectsCount, price, false));
+                            var fee = (int)Math.Ceiling(PriceCalculator.CalculateTaxPrice(single, single.StackObjectsCount, price, false));
                             ConfirmWindow(() => DoFleaOffer(single, session, price), "on the flea", 1, price * single.StackObjectsCount, fee);
                         }
                         catch (Exception ex)
@@ -299,7 +300,7 @@ namespace QuickSell.Patches
                                 if (--pending == 0)
                                 {
                                     var total = validItems.Sum(v => prices[v.Id] * v.StackObjectsCount);
-                                    var totalFee = validItems.Sum(v => (int)Math.Ceiling(FleaTaxCalculatorAbstractClass.CalculateTaxPrice(v, v.StackObjectsCount, prices[v.Id], false)));
+                                    var totalFee = validItems.Sum(v => (int)Math.Ceiling(PriceCalculator.CalculateTaxPrice(v, v.StackObjectsCount, prices[v.Id], false)));
                                     ConfirmWindow(
                                         () =>
                                         {
@@ -345,15 +346,15 @@ namespace QuickSell.Patches
             }
         }
 
-        private static void DoFleaOffer(Item item, ISession session, int price)
+        private static void DoFleaOffer(Item item, IEftSession session, int price)
         {
             try
             {
-                var list = new List<GClass2335>
+                var list = new List<BarterTemplate>
                 {
                     new()
                     {
-                        _tpl = (string)GClass3130.GetCurrencyId(ECurrencyType.RUB),
+                        _tpl = (string)CurrencyUtil.GetCurrencyId(ECurrencyType.RUB),
                         count = price,
                         onlyFunctional = true
                     }
@@ -376,17 +377,17 @@ namespace QuickSell.Patches
                 return null;
             }
 
-            var supplyData = trader.SupplyData_0;
+            var supplyData = trader._supplyData;
             if (supplyData == null)
             {
-                Utils.SendError("SupplyData_0 is null for the provided trader instance.");
+                Utils.SendError("_supplyData is null for the provided trader instance.");
             }
 
             return supplyData;
         }
 
         // Returns Trader with best offer of null if unsellable
-        internal static TraderClass SelectTrader(Item item)
+        internal static Trader SelectTrader(Item item)
         {
             if (traders == null)
             {
@@ -399,7 +400,7 @@ namespace QuickSell.Patches
                 ForceReloadTraders();
             }
 
-            TraderClass best = null;
+            Trader best = null;
             int bestOffer = 0;
 
             if (traders == null)

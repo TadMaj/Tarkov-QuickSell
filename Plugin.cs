@@ -13,11 +13,11 @@ namespace QuickSell
 {
 
     [BepInPlugin("QuickSell.UniqueGUID", "QuickSell", "2.0.0")]
-    [BepInDependency("Tyfon.UIFixes", BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency("com.tyfon.uifixes", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin
     {
-        private static readonly Version UIFixesMinimumVersion = new(2, 5);
-        private const string UIFixesPluginId = "Tyfon.UIFixes";
+        private static readonly System.Version UIFixesMinimumVersion = new(6, 0);
+        private const string UIFixesPluginId = "com.tyfon.uifixes";
 
         public static bool EnableQuickSellFlea = true;
         public static bool EnableQuickSellTraders = true;

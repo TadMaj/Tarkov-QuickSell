@@ -1,3 +1,4 @@
+using EFT.Trading;
 using HarmonyLib;
 using SPT.Reflection.Patching;
 using System.Reflection;
@@ -12,11 +13,11 @@ namespace QuickSell.Patches
         //This patch is in charge of preloading trader assortment for price checking
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.GetDeclaredConstructors(typeof(TraderClass))[0];
+            return AccessTools.GetDeclaredConstructors(typeof(Trader))[0];
         }
 
         [PatchPostfix]
-        private static void Postfix(TraderClass __instance)
+        private static void Postfix(Trader __instance)
         {
             if (__instance.Id == LighthouseKeeperTraderId)
             {

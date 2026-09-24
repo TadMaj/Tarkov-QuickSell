@@ -6,12 +6,12 @@ namespace QuickSell.Patches
     {
         public static void SendNotification(string text)
         {
-            NotificationManagerClass.DisplayMessageNotification(text, ENotificationDurationType.Long);
+            NotificationManager.DisplayMessageNotification(text, ENotificationDurationType.Long);
         }
 
         public static void SendError(string text)
         {
-            NotificationManagerClass.DisplayWarningNotification(text, ENotificationDurationType.Long);
+            NotificationManager.DisplayWarningNotification(text, ENotificationDurationType.Long);
         }
     }
 }
